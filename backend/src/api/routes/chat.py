@@ -10,6 +10,7 @@ from src.core.orchestrator import AgentOrchestrator
 from src.services.llm_service import get_llm_service
 from src.tools.python_repl import PythonREPL
 from src.tools.data_tools import dataset_manager
+from src.api.routes.visualization import register_plot
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -49,7 +50,9 @@ async def send_message(request: ChatRequest):
         
         # Initialize orchestrator
         llm = get_llm_service(provider=request.llm_provider)
-        repl = PythonREPL(df)
+        # Prefix plot_ids with dataset_id to avoid collisions
+        dataset_id = request.dataset_id
+        repl = PythonREPL(df, save_callback=lambda pid, fig: register_plot(f"{dataset_id}_{pid}", fig))
         orchestrator = AgentOrchestrator(llm, repl)
         
         sessions[session_id] = {
@@ -84,7 +87,7 @@ async def send_message(request: ChatRequest):
             message=result['final_answer'],
             agent_type=result.get('agent_type'),
             code_executed=None,
-            plots=result.get('plots', []),
+            plots=[f"{session['dataset_id']}_{pid}" for pid in result.get('plots', [])],
             metadata={
                 'steps': result.get('total_steps'),
                 'execution_time': result.get('execution_time')

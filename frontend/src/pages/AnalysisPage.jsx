@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { chatAPI } from '../services/api';
+import PlotViewer from '../components/PlotViewer';
 
 export default function AnalysisPage() {
     const { currentDataset, sessionId, setSessionId, llmProvider } = useApp();
@@ -111,10 +112,10 @@ export default function AnalysisPage() {
                         >
                             <div
                                 className={`max-w-[80%] rounded-lg p-4 ${msg.role === 'user'
-                                        ? 'bg-primary-600 text-white'
-                                        : msg.role === 'error'
-                                            ? 'bg-red-900/50 text-red-300'
-                                            : 'bg-gray-700 text-gray-100'
+                                    ? 'bg-primary-600 text-white'
+                                    : msg.role === 'error'
+                                        ? 'bg-red-900/50 text-red-300'
+                                        : 'bg-gray-700 text-gray-100'
                                     }`}
                             >
                                 <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -122,6 +123,13 @@ export default function AnalysisPage() {
                                     <div className="mt-3 bg-gray-900 rounded p-3 text-sm">
                                         <p className="text-gray-400 text-xs mb-2">Code executed:</p>
                                         <pre className="text-green-400 overflow-x-auto">{msg.code}</pre>
+                                    </div>
+                                )}
+                                {msg.plots && msg.plots.length > 0 && (
+                                    <div className="mt-4 space-y-4">
+                                        {msg.plots.map((plotId) => (
+                                            <PlotViewer key={plotId} plotId={plotId} />
+                                        ))}
                                     </div>
                                 )}
                                 {msg.metadata && (

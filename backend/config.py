@@ -4,6 +4,11 @@ Configuration management for the agentic data analysis system.
 from pydantic_settings import BaseSettings
 from typing import Optional
 import os
+from dotenv import load_dotenv
+
+# Load .env from project root
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(os.path.join(ROOT_DIR, ".env"))
 
 
 class Settings(BaseSettings):
@@ -42,8 +47,9 @@ class Settings(BaseSettings):
     secret_key: str = "your-secret-key-change-in-production"
     
     class Config:
-        env_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+        env_file = os.path.join(ROOT_DIR, ".env")
         env_file_encoding = "utf-8"
+        extra = "ignore"
 
 
 # Global settings instance

@@ -17,14 +17,16 @@ class PythonREPL:
     Restricted to pandas, plotly, and numpy operations.
     """
     
-    def __init__(self, dataframe: Optional[pd.DataFrame] = None):
+    def __init__(self, dataframe: Optional[pd.DataFrame] = None, save_callback: Optional[callable] = None):
         """
         Initialize REPL with a dataframe.
         
         Args:
             dataframe: Pandas DataFrame to make available as 'df'
+            save_callback: Optional callback for global plot registration
         """
         self.dataframe = dataframe
+        self.save_callback = save_callback
         self.plots: Dict[str, go.Figure] = {}
         self.namespace = {
             'pd': pd,
@@ -45,6 +47,8 @@ class PythonREPL:
             fig: Plotly figure object
         """
         self.plots[plot_id] = fig
+        if self.save_callback:
+            self.save_callback(plot_id, fig)
     
     def execute(self, code: str) -> Dict[str, Any]:
         """
