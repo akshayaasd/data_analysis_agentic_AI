@@ -185,15 +185,3 @@ The orchestrator automatically routes queries to the right agent:
 ### RAG Integration
 
 Past analyses are stored in ChromaDB and retrieved for context-aware responses.
-
-## 🤝 Contributing
-
-This is a demonstration project. Feel free to fork and extend!
-
-## 📄 License
-
-MIT
-
-## 🙏 Acknowledgments
-
-Built with modern AI agent patterns and best practices in web development.
