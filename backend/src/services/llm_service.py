@@ -74,6 +74,16 @@ class LLMService:
             self.client = AsyncAnthropic(api_key=api_key)
             if not model:
                 self.model = "claude-3-5-sonnet-20241022"
+        elif self.provider == "ollama":
+            if AsyncOpenAI is None:
+                raise ImportError("openai package not installed (needed for Ollama compatibility)")
+            # Ollama doesn't need a real API key
+            self.client = AsyncOpenAI(
+                base_url=f"{settings.ollama_base_url}/v1",
+                api_key="ollama"
+            )
+            if not model:
+                self.model = "llama3.1"
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
     

@@ -1,27 +1,35 @@
 import React, { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { dataAPI } from '../services/api';
 
-export default function DataUploadPage() {
+export default function DataUploadPage({ onUploadSuccess }) {
     const [file, setFile] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState(null);
     const [preview, setPreview] = useState(null);
-    const { setCurrentDataset } = useApp();
-    const navigate = useNavigate();
+    const [dragActive, setDragActive] = useState(false);
+    const { setCurrentDataset, setMessages, setSuggestionsList, setSessionId, setSuggestionResults } = useApp();
+
+    const handleDrag = useCallback((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.type === 'dragenter' || e.type === 'dragover') {
+            setDragActive(true);
+        } else if (e.type === 'dragleave') {
+            setDragActive(false);
+        }
+    }, []);
 
     const handleDrop = useCallback((e) => {
         e.preventDefault();
+        e.stopPropagation();
+        setDragActive(false);
         const droppedFile = e.dataTransfer.files[0];
         if (droppedFile) {
             setFile(droppedFile);
             setError(null);
         }
-    }, []);
-
-    const handleDragOver = useCallback((e) => {
-        e.preventDefault();
     }, []);
 
     const handleFileSelect = (e) => {
@@ -43,10 +51,16 @@ export default function DataUploadPage() {
             setCurrentDataset(result.info);
             setPreview(result.preview);
 
-            // Navigate to analysis page after 2 seconds
-            setTimeout(() => {
-                navigate('/analysis');
-            }, 2000);
+            // Clear existing state for new dataset
+            setMessages([]);
+            setSuggestionsList([]);
+            setSuggestionResults({});
+            setSessionId(null);
+
+            // Signal success to parent after a short delay
+            if (onUploadSuccess) {
+                setTimeout(onUploadSuccess, 1500);
+            }
         } catch (err) {
             setError(err.response?.data?.detail || 'Failed to upload file');
         } finally {
@@ -55,21 +69,15 @@ export default function DataUploadPage() {
     };
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
-            <div className="text-center">
-                <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-primary-400 to-purple-400 bg-clip-text text-transparent">
-                    Upload Your Dataset
-                </h1>
-                <p className="text-gray-400">
-                    Upload a CSV or Excel file to start analyzing your data with AI agents
-                </p>
-            </div>
-
+        <div className="space-y-6 animate-fade-in">
             {/* Upload Area */}
             <div
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
                 onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                className="card border-2 border-dashed border-gray-600 hover:border-primary-500 transition-colors cursor-pointer"
+                className={`card border-2 border-dashed transition-all ${dragActive ? 'border-primary-500 bg-primary-500/5' : 'border-gray-700 hover:border-gray-600'
+                    }`}
             >
                 <div className="text-center py-12">
                     <div className="text-6xl mb-4">📁</div>

@@ -34,8 +34,9 @@ app.include_router(visualization.router)
 async def root():
     """Root endpoint."""
     return {
-        "message": "Agentic Data Analysis API",
+        "message": "Agentic Data Analysis API is running!",
         "version": "1.0.0",
+        "instructions": "Visit the frontend at http://localhost:5173 to use the application.",
         "docs": "/docs"
     }
 
@@ -52,5 +53,6 @@ if __name__ == "__main__":
         "main:app",
         host=settings.api_host,
         port=settings.api_port,
-        reload=True
+        reload=True,
+        reload_dirs=["src"]
     )

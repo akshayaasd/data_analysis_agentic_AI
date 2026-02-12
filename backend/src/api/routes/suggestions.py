@@ -12,6 +12,13 @@ from src.tools.data_tools import dataset_manager
 router = APIRouter(prefix="/api/suggestions", tags=["suggestions"])
 
 
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
 @router.get("/{dataset_id}", response_model=SuggestionsResponse)
 async def get_suggestions(dataset_id: str, llm_provider: str = None):
     """
@@ -30,24 +37,33 @@ async def get_suggestions(dataset_id: str, llm_provider: str = None):
         raise HTTPException(status_code=404, detail="Dataset not found")
     
     # Initialize agent
-    llm = get_llm_service(provider=llm_provider)
-    repl = PythonREPL(df)
-    agent = SuggestionsAgent(llm, repl)
+    try:
+        llm = get_llm_service(provider=llm_provider)
+        repl = PythonREPL(df)
+        agent = SuggestionsAgent(llm, repl)
+    except Exception as e:
+        logger.error(f"Error initializing SuggestionsAgent: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to initialize suggestions: {str(e)}")
     
     # Generate suggestions
     try:
+        logger.info(f"Generating suggestions for dataset {dataset_id}")
         result = await agent.run("Generate top 3 suggestions for this dataset")
         
         # Parse suggestions
         suggestions_list = result.get('suggestions', [])
         
+        if not suggestions_list:
+            logger.warning(f"No suggestions generated for dataset {dataset_id}. Raw result: {result.get('final_answer')}")
+        
         # Convert to Suggestion objects
         suggestions = []
-        for i, sug in enumerate(suggestions_list[:3]):  # Ensure only 3
+        # Support variable number of suggestions (1-3)
+        for i, sug in enumerate(suggestions_list[:3]):
             suggestions.append(Suggestion(
                 suggestion_id=f"{dataset_id}_sug_{i+1}",
-                title=sug.get('title', ''),
-                description=sug.get('description', ''),
+                title=sug.get('title', 'Analysis Suggestion'),
+                description=sug.get('description', 'No description available'),
                 category=sug.get('category', 'analysis'),
                 confidence=sug.get('confidence', 0.5),
                 query=sug.get('query', ''),
@@ -60,6 +76,7 @@ async def get_suggestions(dataset_id: str, llm_provider: str = None):
         )
         
     except Exception as e:
+        logger.error(f"Failed to generate suggestions for dataset {dataset_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail=f"Failed to generate suggestions: {str(e)}"

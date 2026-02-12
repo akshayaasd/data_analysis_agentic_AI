@@ -1,14 +1,14 @@
-"""
-Python REPL tool for safe code execution.
-"""
 import sys
 import io
+import logging
 import traceback
 from typing import Dict, Any, Optional
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 class PythonREPL:
@@ -46,6 +46,7 @@ class PythonREPL:
             plot_id: Unique identifier for the plot
             fig: Plotly figure object
         """
+        logger.info(f"Saving plot with ID: {plot_id}")
         self.plots[plot_id] = fig
         if self.save_callback:
             self.save_callback(plot_id, fig)

@@ -22,11 +22,11 @@ You have access to a pandas DataFrame called 'df'.
 
 Your job is to:
 1. Examine the dataset structure (columns, types, values)
-2. Identify interesting patterns or relationships
-3. Generate exactly 3 suggestions (mix of analysis and visualization)
-4. Rank them by potential insight value
+2. Identify interesting patterns, relationships, or anomalies
+3. Generate 1 to 3 HIGH-QUALITY, DISTINCT suggestions (mix of analysis and visualization)
+4. Ensure suggestions are NOT redundant and provide different perspectives on the data
 
-You must follow this format EXACTLY:
+You must follow this format:
 
 Thought: [Your reasoning about the dataset characteristics]
 Action: Python
@@ -50,35 +50,33 @@ Final Answer:
       "query": "The exact query to execute this suggestion",
       "expected_insight": "What insights the user might gain",
       "confidence": 0.9
-    },
-    ... (exactly 3 suggestions)
+    }
+    // ... up to 3 distinct suggestions
   ]
 }
 ```
 
 IMPORTANT RULES:
-1. Generate EXACTLY 3 suggestions
-2. Mix analysis and visualization suggestions
-3. Base suggestions on actual data characteristics
-4. Rank by confidence (0.0 to 1.0)
-5. Make queries specific and actionable
-6. Focus on insights that would be valuable to a business user
+1. Generate between 1 and 3 suggestions. Quality and diversity are MORE important than quantity.
+2. DO NOT provide redundant suggestions (e.g., three different bar charts of the same data).
+3. If the dataset is simple, 1 or 2 high-quality suggestions are better than 3 repetitive ones.
+4. Mix analysis and visualization categories where possible.
+5. Base suggestions on actual data characteristics and column types.
+6. Rank by confidence (0.0 to 1.0).
+7. Make queries specific, actionable, and ready for execution.
 
-Suggestion Guidelines:
-- Look for numeric columns → suggest aggregations, trends, distributions
-- Look for categorical columns → suggest breakdowns, comparisons
-- Look for time columns → suggest time series analysis
-- Look for correlations → suggest scatter plots, heatmaps
-- Look for outliers → suggest box plots, statistical analysis
+Suggestion Guidelines (Prioritize Variety):
+- Numeric → Trends (line), Distributions (histogram/box), Top N (bar)
+- Categorical → Breakdown (pie/bar), Comparisons
+- Time Series → Seasonality, Growth rates
+- Relationships → Correlations, Scatter plots, Heatmaps
 
 Example for a sales dataset:
 
-Thought: This dataset has Sales, Region, Product, and Date columns. I should suggest analyses that reveal business insights.
+Thought: This dataset has Sales, Category, and Date. I should provide diverse insights.
 Action: Python
 ```python
-print(df.columns.tolist())
-print(df.dtypes)
-print(df.describe())
+print(df.info())
 ```
 
 [After observation]
@@ -88,34 +86,26 @@ Final Answer:
 {
   "suggestions": [
     {
-      "title": "Sales Performance by Region",
-      "description": "Compare total sales across different regions to identify top performers",
+      "title": "Monthly Sales Growth",
+      "description": "Visualize revenue trends over time to identify growth periods",
       "category": "visualization",
-      "query": "Create a bar chart showing total sales by region",
-      "expected_insight": "Identify which regions are generating the most revenue and which may need attention",
+      "query": "Create a line chart showing total sales by month",
+      "expected_insight": "Identify seasonal trends and overall growth trajectory",
       "confidence": 0.95
     },
     {
-      "title": "Product Profitability Analysis",
-      "description": "Calculate profit margins for each product category",
+      "title": "Category Performance Breakdown",
+      "description": "Compare total revenue across different product categories",
       "category": "analysis",
-      "query": "Calculate the average profit margin by product and show the top 5",
-      "expected_insight": "Understand which products are most profitable and should be prioritized",
+      "query": "Calculate total sales and percentage share for each category",
+      "expected_insight": "Identify which product categories are the primary revenue drivers",
       "confidence": 0.90
-    },
-    {
-      "title": "Sales Trends Over Time",
-      "description": "Visualize how sales have changed over the time period",
-      "category": "visualization",
-      "query": "Create a line chart showing sales trends over time",
-      "expected_insight": "Identify seasonal patterns, growth trends, or concerning declines",
-      "confidence": 0.85
     }
   ]
 }
 ```
 
-Now, analyze the dataset and generate your top 3 suggestions."""
+Now, analyze the dataset and generate your top suggestions. Avoid redundancy at all costs."""
     
     async def run(self, query: str) -> Dict[str, Any]:
         """
@@ -133,18 +123,28 @@ Now, analyze the dataset and generate your top 3 suggestions."""
         try:
             # Extract JSON from final answer
             final_answer = result['final_answer']
-            json_match = final_answer.find('```json')
-            if json_match != -1:
-                json_start = json_match + 7
-                json_end = final_answer.find('```', json_start)
-                json_str = final_answer[json_start:json_end].strip()
+            
+            # Use regex for better extraction
+            import re
+            json_pattern = r'```json\n(.*?)\n```'
+            json_match = re.search(json_pattern, final_answer, re.DOTALL)
+            
+            if json_match:
+                json_str = json_match.group(1).strip()
             else:
-                json_str = final_answer
+                # Fallback: try to find anything that looks like JSON
+                json_match = re.search(r'(\{.*\})', final_answer, re.DOTALL)
+                if json_match:
+                    json_str = json_match.group(1).strip()
+                else:
+                    json_str = final_answer
             
             suggestions_data = json.loads(json_str)
             result['suggestions'] = suggestions_data.get('suggestions', [])
         except Exception as e:
             # If parsing fails, return empty suggestions
+            import logging
+            logging.getLogger(__name__).error(f"Failed to parse suggestions JSON: {e}\nRaw answer: {result.get('final_answer')}")
             result['suggestions'] = []
             result['parse_error'] = str(e)
         

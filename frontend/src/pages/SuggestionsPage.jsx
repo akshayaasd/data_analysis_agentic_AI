@@ -1,31 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { suggestionsAPI, chatAPI } from '../services/api';
+import PlotViewer from '../components/PlotViewer';
 
 export default function SuggestionsPage() {
-    const { currentDataset, llmProvider } = useApp();
-    const [suggestions, setSuggestions] = useState([]);
+    const {
+        currentDataset,
+        llmProvider,
+        suggestionsList,
+        setSuggestionsList,
+        suggestionResults,
+        setSuggestionResults
+    } = useApp();
     const [loading, setLoading] = useState(false);
     const [executing, setExecuting] = useState(null);
-    const [results, setResults] = useState({});
 
-    useEffect(() => {
-        if (currentDataset) {
-            loadSuggestions();
-        }
-    }, [currentDataset]);
-
-    const loadSuggestions = async () => {
+    const loadSuggestions = useCallback(async () => {
         setLoading(true);
         try {
             const data = await suggestionsAPI.get(currentDataset.dataset_id, llmProvider);
-            setSuggestions(data.suggestions);
+            setSuggestionsList(data.suggestions);
         } catch (error) {
             console.error('Failed to load suggestions:', error);
         } finally {
             setLoading(false);
         }
-    };
+    }, [currentDataset?.dataset_id, llmProvider, setSuggestionsList]);
+
+    useEffect(() => {
+        if (currentDataset && suggestionsList.length === 0) {
+            loadSuggestions();
+        }
+    }, [currentDataset, suggestionsList.length, loadSuggestions]);
 
     const executeSuggestion = async (suggestion) => {
         setExecuting(suggestion.suggestion_id);
@@ -36,12 +42,15 @@ export default function SuggestionsPage() {
                 currentDataset.dataset_id,
                 llmProvider
             );
-            setResults((prev) => ({
+            setSuggestionResults((prev) => ({
                 ...prev,
-                [suggestion.suggestion_id]: response.message,
+                [suggestion.suggestion_id]: {
+                    message: response.message,
+                    plots: response.plots
+                },
             }));
         } catch (error) {
-            setResults((prev) => ({
+            setSuggestionResults((prev) => ({
                 ...prev,
                 [suggestion.suggestion_id]: 'Error: ' + (error.response?.data?.detail || 'Failed to execute'),
             }));
@@ -50,39 +59,32 @@ export default function SuggestionsPage() {
         }
     };
 
-    if (!currentDataset) {
-        return (
-            <div className="text-center py-12">
-                <div className="text-6xl mb-4">💡</div>
-                <h2 className="text-2xl font-bold mb-4 text-white">No Dataset Loaded</h2>
-                <p className="text-gray-400 mb-6">Please upload a dataset first to get suggestions</p>
-                <a href="/upload" className="btn-primary inline-block">
-                    Upload Dataset
-                </a>
-            </div>
-        );
-    }
-
     return (
-        <div className="max-w-6xl mx-auto space-y-8 animate-fade-in">
+        <div className="space-y-6 animate-fade-in">
             {/* Header */}
-            <div className="text-center">
-                <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
-                    💡 Smart Suggestions
-                </h1>
-                <p className="text-gray-400">
-                    AI-powered recommendations for analyzing <span className="text-primary-400 font-semibold">{currentDataset.filename}</span>
-                </p>
+            <div className="flex items-center justify-between mb-2">
+                <h2 className="text-xl font-bold text-white flex items-center space-x-2">
+                    <span>💡</span>
+                    <span>AI-Generated Insights</span>
+                </h2>
+                <button
+                    onClick={loadSuggestions}
+                    disabled={loading}
+                    className="text-xs font-semibold text-primary-400 hover:text-primary-300 transition-colors uppercase tracking-widest disabled:opacity-50"
+                >
+                    {loading ? 'Refreshing...' : 'Refresh Suggestions'}
+                </button>
             </div>
 
+            {/* Suggestions List */}
             {loading ? (
                 <div className="text-center py-12">
                     <div className="text-6xl mb-4 animate-pulse">🤖</div>
                     <p className="text-gray-400">Analyzing your dataset and generating suggestions...</p>
                 </div>
             ) : (
-                <div className="grid md:grid-cols-3 gap-6">
-                    {suggestions.map((suggestion, index) => (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {suggestionsList.map((suggestion, index) => (
                         <div
                             key={suggestion.suggestion_id}
                             className="card hover:scale-105 transition-transform duration-300 animate-slide-up"
@@ -97,8 +99,8 @@ export default function SuggestionsPage() {
                                         <span
                                             key={i}
                                             className={`text-lg ${i < Math.round(suggestion.confidence * 5)
-                                                    ? 'text-yellow-400'
-                                                    : 'text-gray-600'
+                                                ? 'text-yellow-400'
+                                                : 'text-gray-600'
                                                 }`}
                                         >
                                             ⭐
@@ -123,9 +125,21 @@ export default function SuggestionsPage() {
                                 {executing === suggestion.suggestion_id ? 'Executing...' : 'Execute'}
                             </button>
 
-                            {results[suggestion.suggestion_id] && (
-                                <div className="mt-4 bg-green-900/20 border border-green-700 rounded p-3">
-                                    <p className="text-sm text-green-300">{results[suggestion.suggestion_id]}</p>
+                            {suggestionResults[suggestion.suggestion_id] && (
+                                <div className="mt-4 bg-gray-900/40 border border-gray-700 rounded p-4">
+                                    <p className="text-sm text-gray-200 mb-2">
+                                        {typeof suggestionResults[suggestion.suggestion_id] === 'string'
+                                            ? suggestionResults[suggestion.suggestion_id]
+                                            : suggestionResults[suggestion.suggestion_id].message}
+                                    </p>
+
+                                    {suggestionResults[suggestion.suggestion_id].plots && suggestionResults[suggestion.suggestion_id].plots.length > 0 && (
+                                        <div className="mt-4 space-y-4">
+                                            {suggestionResults[suggestion.suggestion_id].plots.map((plotId) => (
+                                                <PlotViewer key={plotId} plotId={plotId} />
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -133,7 +147,7 @@ export default function SuggestionsPage() {
                 </div>
             )}
 
-            {!loading && suggestions.length === 0 && (
+            {!loading && suggestionsList.length === 0 && (
                 <div className="text-center py-12">
                     <p className="text-gray-400">No suggestions available. Try uploading a different dataset.</p>
                 </div>

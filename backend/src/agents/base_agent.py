@@ -4,12 +4,15 @@ All specialized agents inherit from this class.
 """
 import re
 import time
+import logging
 from typing import List, Dict, Any, Optional
 from abc import ABC, abstractmethod
 
 from src.services.llm_service import LLMService
 from src.tools.python_repl import PythonREPL
 from config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class BaseAgent(ABC):
@@ -61,13 +64,7 @@ class BaseAgent(ABC):
     
     def parse_response(self, response: str) -> Dict[str, Any]:
         """
-        Parse LLM response to extract thought, action, and final answer.
-        
-        Args:
-            response: Raw LLM response
-            
-        Returns:
-            Dict with 'thought', 'action', 'action_input', 'final_answer'
+        Parse raw LLM response into thought, action, and action_input.
         """
         parsed = {
             'thought': None,
@@ -77,25 +74,38 @@ class BaseAgent(ABC):
         }
         
         # Extract thought
-        thought_match = re.search(r'Thought:\s*(.+?)(?=\n(?:Action:|Final Answer:)|$)', response, re.DOTALL)
+        thought_match = re.search(r'Thought:\s*(.+?)(?=\nAction:|\nFinal Answer:|$)', response, re.DOTALL)
         if thought_match:
             parsed['thought'] = thought_match.group(1).strip()
-        
+        else:
+            # Fallback for models that skip "Thought:"
+            # Look for everything before the first Action or Final Answer
+            thought_match = re.search(r'^(.+?)(?=\nAction:|\nFinal Answer:|$)', response, re.DOTALL)
+            if thought_match:
+                parsed['thought'] = thought_match.group(1).strip()
+            elif not any(x in response for x in ["Action:", "Final Answer:"]):
+                # If neither is present, the whole thing might be a thought/answer
+                parsed['thought'] = response.strip()
+
         # Extract final answer
-        final_match = re.search(r'Final Answer:\s*(.+)', response, re.DOTALL)
-        if final_match:
-            parsed['final_answer'] = final_match.group(1).strip()
-            return parsed
+        final_answer_match = re.search(r'Final Answer:\s*(.+)', response, re.DOTALL)
+        if final_answer_match:
+            parsed['final_answer'] = final_answer_match.group(1).strip()
         
-        # Extract action
+        # Extract action - Allow for trailing whitespace and missing action names
         action_match = re.search(r'Action:\s*(.+?)(?=\n|$)', response)
         if action_match:
             parsed['action'] = action_match.group(1).strip()
-        
-        # Extract action input (code block)
-        code_match = re.search(r'```python\n(.+?)\n```', response, re.DOTALL)
-        if code_match:
-            parsed['action_input'] = code_match.group(1).strip()
+            
+            # Extract action input (code block)
+            code_match = re.search(r'```python\n(.+?)\n```', response, re.DOTALL)
+            if code_match:
+                parsed['action_input'] = code_match.group(1).strip()
+            
+            # Special case: If action is just ```python, it means the model skipped the name
+            if parsed['action'].startswith('```python') or not parsed['action']:
+                if parsed['action_input']:
+                    parsed['action'] = 'Python'
         
         return parsed
     
@@ -116,12 +126,15 @@ class BaseAgent(ABC):
             if result['success']:
                 observation = result['output'] or "Code executed successfully."
                 if result['plots']:
+                    logger.info(f"Adding plots to agent: {result['plots']}")
                     self.plots.extend(result['plots'])
                     observation += f"\nPlots created: {', '.join(result['plots'])}"
                 return observation
             else:
+                logger.error(f"Execution error: {result['error']}")
                 return f"Error: {result['error']}"
         else:
+            logger.warning(f"Unknown action: {action}")
             return f"Unknown action: {action}"
     
     def build_prompt(self, query: str, history: List[Dict[str, Any]]) -> List[Dict[str, str]]:
@@ -139,26 +152,36 @@ class BaseAgent(ABC):
             {"role": "system", "content": self.get_system_prompt()}
         ]
         
-        # Add conversation history
+        # Add conversation history as separate messages
         if history:
-            history_text = ""
             for step in history:
+                # Agent turn
+                assistant_content = ""
                 if step.get('thought'):
-                    history_text += f"\nThought: {step['thought']}"
+                    assistant_content += f"Thought: {step['thought']}"
                 if step.get('action'):
-                    history_text += f"\nAction: {step['action']}"
+                    if assistant_content: assistant_content += "\n"
+                    assistant_content += f"Action: {step['action']}"
                 if step.get('action_input'):
-                    history_text += f"\n```python\n{step['action_input']}\n```"
+                    if assistant_content: assistant_content += "\n"
+                    assistant_content += f"```python\n{step['action_input']}\n```"
+                
+                if assistant_content:
+                    messages.append({"role": "assistant", "content": assistant_content})
+                
+                # System observation turn
                 if step.get('observation'):
-                    history_text += f"\nObservation: {step['observation']}"
-            
-            messages.append({"role": "assistant", "content": history_text})
+                    messages.append({"role": "user", "content": f"Observation: {step['observation']}"})
         
         # Add current query
         if not history:
             messages.append({"role": "user", "content": f"Query: {query}"})
         else:
-            messages.append({"role": "user", "content": "Continue reasoning or provide final answer."})
+            # If the last message was a thought/action, the LLM should have received an observation already
+            # If the last message was an observation, we just want it to continue
+            if messages[-1]["role"] == "assistant":
+                # This should only happen if execution failed or something went wrong
+                messages.append({"role": "user", "content": "Please continue with the next step or final answer."})
         
         return messages
     
@@ -182,9 +205,11 @@ class BaseAgent(ABC):
             
             # Get LLM response
             response = await self.llm.generate(messages)
+            logger.info(f"Step {step_num} raw response: {response}")
             
             # Parse response
             parsed = self.parse_response(response)
+            logger.info(f"Step {step_num} parsed: {parsed}")
             
             # Create step record
             step = {
@@ -195,8 +220,13 @@ class BaseAgent(ABC):
                 'observation': None
             }
             
+            # Execute action if present (Do this BEFORE checking for Final Answer)
+            if parsed.get('action') and parsed.get('action_input'):
+                observation = self.execute_action(parsed['action'], parsed['action_input'])
+                step['observation'] = observation
+            
             # Check if we have a final answer
-            if parsed['final_answer']:
+            if parsed.get('final_answer'):
                 step['final_answer'] = parsed['final_answer']
                 self.steps.append(step)
                 
@@ -209,10 +239,8 @@ class BaseAgent(ABC):
                     'agent_type': self.get_agent_type()
                 }
             
-            # Execute action if present
-            if parsed['action'] and parsed['action_input']:
-                observation = self.execute_action(parsed['action'], parsed['action_input'])
-                step['observation'] = observation
+            # If no action was taken and no final answer was given, the agent might be stuck or just providing a thought
+            # We continue the loop and build_prompt will add a "Please continue" message if needed
             
             self.steps.append(step)
         

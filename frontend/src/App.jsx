@@ -1,53 +1,54 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { AppProvider } from './context/AppContext';
-import HomePage from './pages/HomePage';
-import DataUploadPage from './pages/DataUploadPage';
-import AnalysisPage from './pages/AnalysisPage';
-import VisualizationPage from './pages/VisualizationPage';
-import SuggestionsPage from './pages/SuggestionsPage';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { AppProvider, useApp } from './context/AppContext';
+import Dashboard from './pages/Dashboard';
 import './index.css';
 
 function Navigation() {
-  const location = useLocation();
-
-  const navItems = [
-    { path: '/', label: 'Home', icon: '🏠' },
-    { path: '/upload', label: 'Upload Data', icon: '📤' },
-    { path: '/analysis', label: 'Analysis', icon: '📊' },
-    { path: '/visualizations', label: 'Visualizations', icon: '📈' },
-    { path: '/suggestions', label: 'Suggestions', icon: '💡' },
-  ];
+  const { llmProvider, setLlmProvider } = useApp();
 
   return (
-    <nav className="bg-gray-800/80 backdrop-blur-md border-b border-gray-700 sticky top-0 z-50">
-      <div className="container mx-auto px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="text-2xl">🤖</div>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-primary-400 to-primary-600 bg-clip-text text-transparent">
-              Agentic Data Analysis
-            </h1>
-          </div>
+    <nav className="bg-gray-800 border-b border-gray-700 h-16 flex items-center justify-between px-6 sticky top-0 z-50">
+      <div className="flex items-center space-x-3">
+        <Link to="/" className="flex items-center space-x-2">
+          <span className="text-3xl">🚀</span>
+          <span className="text-xl font-bold bg-gradient-to-r from-primary-400 to-primary-600 bg-clip-text text-transparent">
+            AnalystAgent
+          </span>
+        </Link>
+      </div>
 
-          <div className="flex space-x-1">
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center space-x-2 ${location.pathname === item.path
-                    ? 'bg-primary-600 text-white shadow-lg'
-                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                  }`}
-              >
-                <span>{item.icon}</span>
-                <span className="font-medium">{item.label}</span>
-              </Link>
-            ))}
-          </div>
+      <div className="flex items-center space-x-6">
+        <div className="flex items-center space-x-3">
+          <span className="text-sm text-gray-400 font-medium italic">Powered by</span>
+          <select
+            value={llmProvider}
+            onChange={(e) => setLlmProvider(e.target.value)}
+            className="bg-gray-700 text-white text-sm rounded-lg px-4 py-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all font-semibold"
+          >
+            <option value="groq">Groq (Llama 3.3)</option>
+            <option value="openai">OpenAI (GPT-4)</option>
+            <option value="anthropic">Anthropic (Claude 3.5)</option>
+            <option value="ollama">Ollama (Local)</option>
+          </select>
         </div>
       </div>
     </nav>
+  );
+}
+
+function AppContent() {
+  return (
+    <div className="min-h-screen bg-gray-900 text-gray-100 font-sans selection:bg-primary-500/30">
+      <Navigation />
+      <main>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          {/* Fallback to root for any other path */}
+          <Route path="*" element={<Dashboard />} />
+        </Routes>
+      </main>
+    </div>
   );
 }
 
@@ -55,18 +56,7 @@ function App() {
   return (
     <AppProvider>
       <Router>
-        <div className="min-h-screen">
-          <Navigation />
-          <main className="container mx-auto px-6 py-8">
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/upload" element={<DataUploadPage />} />
-              <Route path="/analysis" element={<AnalysisPage />} />
-              <Route path="/visualizations" element={<VisualizationPage />} />
-              <Route path="/suggestions" element={<SuggestionsPage />} />
-            </Routes>
-          </main>
-        </div>
+        <AppContent />
       </Router>
     </AppProvider>
   );

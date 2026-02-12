@@ -4,8 +4,7 @@ import { chatAPI } from '../services/api';
 import PlotViewer from '../components/PlotViewer';
 
 export default function AnalysisPage() {
-    const { currentDataset, sessionId, setSessionId, llmProvider } = useApp();
-    const [messages, setMessages] = useState([]);
+    const { currentDataset, sessionId, setSessionId, llmProvider, messages, setMessages } = useApp();
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const messagesEndRef = useRef(null);
@@ -36,6 +35,8 @@ export default function AnalysisPage() {
                 setSessionId(response.session_id);
             }
 
+            console.log('Agent Response:', response);
+
             const assistantMessage = {
                 role: 'assistant',
                 content: response.message,
@@ -63,38 +64,10 @@ export default function AnalysisPage() {
         }
     };
 
-    if (!currentDataset) {
-        return (
-            <div className="text-center py-12">
-                <div className="text-6xl mb-4">📊</div>
-                <h2 className="text-2xl font-bold mb-4 text-white">No Dataset Loaded</h2>
-                <p className="text-gray-400 mb-6">Please upload a dataset first to start analysis</p>
-                <a href="/upload" className="btn-primary inline-block">
-                    Upload Dataset
-                </a>
-            </div>
-        );
-    }
-
     return (
-        <div className="max-w-5xl mx-auto space-y-6 animate-fade-in">
-            {/* Header */}
-            <div className="card">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold text-white mb-1">Analysis Chat</h1>
-                        <p className="text-sm text-gray-400">
-                            Dataset: <span className="text-primary-400 font-semibold">{currentDataset.filename}</span>
-                        </p>
-                    </div>
-                    <div className="text-sm text-gray-400">
-                        {currentDataset.rows} rows × {currentDataset.columns} columns
-                    </div>
-                </div>
-            </div>
-
+        <div className="space-y-6 animate-fade-in">
             {/* Chat Messages */}
-            <div className="card h-[500px] overflow-y-auto space-y-4">
+            <div className="card h-[calc(100vh-320px)] overflow-y-auto space-y-4">
                 {messages.length === 0 ? (
                     <div className="text-center py-12 text-gray-500">
                         <p className="text-lg mb-4">👋 Ask me anything about your data!</p>

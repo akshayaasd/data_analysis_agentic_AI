@@ -18,15 +18,16 @@ class Settings(BaseSettings):
     openai_api_key: Optional[str] = None
     groq_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
+    ollama_base_url: str = "http://localhost:11434"
     
     # LLM Configuration
     default_llm_provider: str = "groq"  # groq, openai, anthropic
-    default_model: str = "llama-3.3-70b-versatile"  # For Groq
+    default_model: str = "llama-3.1-8b-instant"  # For Groq
     max_tokens: int = 2000
     temperature: float = 0.1
     
     # Agent Configuration
-    max_agent_steps: int = 10
+    max_agent_steps: int = 15
     agent_timeout: int = 120  # seconds
     
     # Database

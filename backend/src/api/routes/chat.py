@@ -14,8 +14,47 @@ from src.api.routes.visualization import register_plot
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
-# Store active sessions
-sessions: Dict[str, Dict[str, Any]] = {}
+import json
+import os
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Session storage path
+SESSIONS_FILE = "data/sessions.json"
+if not os.path.exists("data"):
+    os.makedirs("data")
+
+# Store active orchestrators in memory (these can't be serialized)
+active_orchestrators: Dict[str, AgentOrchestrator] = {}
+
+def load_sessions() -> Dict[str, Any]:
+    if os.path.exists(SESSIONS_FILE):
+        try:
+            with open(SESSIONS_FILE, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error loading sessions: {e}")
+    return {}
+
+def save_sessions(sessions_data: Dict[str, Any]):
+    try:
+        # Only save serializable data (history and metadata)
+        serializable_sessions = {}
+        for sid, data in sessions_data.items():
+            serializable_sessions[sid] = {
+                'dataset_id': data.get('dataset_id'),
+                'history': data.get('history', [])
+            }
+        with open(SESSIONS_FILE, 'w') as f:
+            json.dump(serializable_sessions, f)
+    except Exception as e:
+        logger.error(f"Error saving sessions: {e}")
+
+# Initial load
+sessions = load_sessions()
 
 
 @router.post("/message", response_model=ChatResponse)
@@ -32,40 +71,47 @@ async def send_message(request: ChatRequest):
     # Get or create session
     session_id = request.session_id or str(uuid.uuid4())
     
-    if session_id not in sessions:
-        # Create new session
-        if not request.dataset_id:
+    if session_id not in sessions or session_id not in active_orchestrators:
+        # Create or restore session
+        dataset_id = request.dataset_id or (sessions.get(session_id, {}).get('dataset_id') if session_id in sessions else None)
+        
+        if not dataset_id:
             raise HTTPException(
                 status_code=400,
                 detail="dataset_id required for new session"
             )
         
         # Get dataset
-        df = dataset_manager.get_dataset(request.dataset_id)
+        df = dataset_manager.get_dataset(dataset_id)
         if df is None:
             raise HTTPException(
                 status_code=404,
-                detail=f"Dataset {request.dataset_id} not found"
+                detail=f"Dataset {dataset_id} not found"
             )
         
         # Initialize orchestrator
-        llm = get_llm_service(provider=request.llm_provider)
-        # Prefix plot_ids with dataset_id to avoid collisions
-        dataset_id = request.dataset_id
-        repl = PythonREPL(df, save_callback=lambda pid, fig: register_plot(f"{dataset_id}_{pid}", fig))
-        orchestrator = AgentOrchestrator(llm, repl)
+        try:
+            llm = get_llm_service(provider=request.llm_provider)
+            repl = PythonREPL(df, save_callback=lambda pid, fig: register_plot(f"{dataset_id}_{pid}", fig))
+            orchestrator = AgentOrchestrator(llm, repl)
+            active_orchestrators[session_id] = orchestrator
+        except Exception as e:
+            logger.error(f"Error initializing orchestrator: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to initialize AI agent: {str(e)}")
         
-        sessions[session_id] = {
-            'orchestrator': orchestrator,
-            'dataset_id': request.dataset_id,
-            'history': []
-        }
+        if session_id not in sessions:
+            sessions[session_id] = {
+                'dataset_id': dataset_id,
+                'history': []
+            }
     
     session = sessions[session_id]
+    orchestrator = active_orchestrators[session_id]
     
     # Execute query
     try:
-        result = await session['orchestrator'].execute(
+        logger.info(f"Executing query for session {session_id}: {request.message}")
+        result = await orchestrator.execute(
             query=request.message,
             dataset_id=session['dataset_id'],
             use_rag=False
@@ -80,6 +126,9 @@ async def send_message(request: ChatRequest):
             'role': MessageRole.ASSISTANT,
             'content': result['final_answer']
         })
+        
+        # Save sessions to disk
+        save_sessions(sessions)
         
         # Build response
         response = ChatResponse(
@@ -103,7 +152,8 @@ async def send_message(request: ChatRequest):
         return response
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error executing agent for session {session_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Agent execution error: {str(e)}")
 
 
 @router.get("/history/{session_id}")
@@ -120,5 +170,8 @@ async def clear_session(session_id: str):
     """Clear a session."""
     if session_id in sessions:
         del sessions[session_id]
+    if session_id in active_orchestrators:
+        del active_orchestrators[session_id]
     
+    save_sessions(sessions)
     return {"message": "Session cleared"}
