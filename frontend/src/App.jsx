@@ -27,9 +27,6 @@ function Navigation() {
             className="bg-gray-700 text-white text-sm rounded-lg px-4 py-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all font-semibold"
           >
             <option value="groq">Groq (Llama 3.3)</option>
-            <option value="openai">OpenAI (GPT-4)</option>
-            <option value="anthropic">Anthropic (Claude 3.5)</option>
-            <option value="ollama">Ollama (Local)</option>
           </select>
         </div>
       </div>

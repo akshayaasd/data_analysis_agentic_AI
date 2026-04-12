@@ -38,7 +38,12 @@ async def get_suggestions(dataset_id: str, llm_provider: str = None):
     
     # Initialize agent
     try:
-        llm = get_llm_service(provider=llm_provider)
+        provider = (llm_provider or "").strip().lower() or None
+        if provider == "gemini":
+            logger.info("Gemini provider requested for suggestions; falling back to groq")
+            provider = "groq"
+
+        llm = get_llm_service(provider=provider)
         repl = PythonREPL(df)
         agent = SuggestionsAgent(llm, repl)
     except Exception as e:

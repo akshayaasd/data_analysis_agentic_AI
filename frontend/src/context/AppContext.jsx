@@ -14,6 +14,8 @@ export const useApp = () => {
 };
 
 export const AppProvider = ({ children }) => {
+    const allowedProviders = new Set(['groq']);
+
     // Initial state from localStorage with error handling
     const [currentDataset, setCurrentDataset] = useState(() => {
         try {
@@ -31,7 +33,8 @@ export const AppProvider = ({ children }) => {
     });
 
     const [llmProvider, setLlmProvider] = useState(() => {
-        return localStorage.getItem('llmProvider') || 'ollama';
+        const saved = (localStorage.getItem('llmProvider') || '').toLowerCase().trim();
+        return allowedProviders.has(saved) ? saved : 'groq';
     });
 
     const [apiKey, setApiKey] = useState(() => {
@@ -85,7 +88,13 @@ export const AppProvider = ({ children }) => {
     }, [sessionId]);
 
     useEffect(() => {
-        localStorage.setItem('llmProvider', llmProvider);
+        const normalized = (llmProvider || '').toLowerCase().trim();
+        const safeProvider = allowedProviders.has(normalized) ? normalized : 'groq';
+        if (safeProvider !== llmProvider) {
+            setLlmProvider(safeProvider);
+            return;
+        }
+        localStorage.setItem('llmProvider', safeProvider);
     }, [llmProvider]);
 
     useEffect(() => {

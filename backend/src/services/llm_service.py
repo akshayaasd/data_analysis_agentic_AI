@@ -1,6 +1,6 @@
 """
 Multi-provider LLM service for agent communication.
-Supports Groq, OpenAI, and Anthropic.
+Supports Groq, OpenAI, Anthropic, Ollama, and Gemini.
 """
 from typing import Optional, List, Dict, Any, AsyncGenerator
 import os
@@ -22,11 +22,6 @@ try:
 except ImportError:
     AsyncAnthropic = None
 
-try:
-    from google import genai
-except ImportError:
-    genai = None
-
 
 class LLMService:
     """Multi-provider LLM service."""
@@ -41,11 +36,12 @@ class LLMService:
         Initialize LLM service.
         
         Args:
-            provider: LLM provider (groq, openai, anthropic)
+            provider: LLM provider (groq, openai, anthropic, ollama, gemini)
             api_key: API key for the provider
             model: Model name to use
         """
-        self.provider = provider or settings.default_llm_provider
+        # Enforce Groq globally for consistent behavior across all routes/agents.
+        self.provider = "groq"
         self.model = model or settings.default_model
         self.api_key = api_key
         
@@ -57,7 +53,7 @@ class LLMService:
             if not api_key:
                 raise ValueError("Groq API key not found")
             self.client = AsyncGroq(api_key=api_key)
-            if not self.model:
+            if not model:
                 self.model = "llama-3.3-70b-versatile"
                 
         elif self.provider == "openai":
@@ -67,7 +63,7 @@ class LLMService:
             if not api_key:
                 raise ValueError("OpenAI API key not found")
             self.client = AsyncOpenAI(api_key=api_key)
-            if not self.model:
+            if not model:
                 self.model = "gpt-4"
                 
         elif self.provider == "anthropic":
@@ -77,7 +73,7 @@ class LLMService:
             if not api_key:
                 raise ValueError("Anthropic API key not found")
             self.client = AsyncAnthropic(api_key=api_key)
-            if not self.model:
+            if not model:
                 self.model = "claude-3-5-sonnet-20241022"
         elif self.provider == "ollama":
             if AsyncOpenAI is None:
@@ -87,18 +83,20 @@ class LLMService:
                 base_url=f"{settings.ollama_base_url}/v1",
                 api_key="ollama"
             )
-            if not self.model:
+            if not model:
                 self.model = "llama3.1"
         elif self.provider == "gemini":
-            if genai is None:
-                raise ImportError("google-genai package not installed")
+            if AsyncOpenAI is None:
+                raise ImportError("openai package not installed (needed for Gemini OpenAI-compatible API)")
             api_key = api_key or settings.gemini_api_key or os.getenv("GEMINI_API_KEY")
             if not api_key:
                 raise ValueError("Gemini API key not found")
-            
-            if not self.model:
-                self.model = "gemini-2.5-flash" 
-            self.client = genai.Client(api_key=api_key)
+            self.client = AsyncOpenAI(
+                base_url=settings.gemini_base_url,
+                api_key=api_key
+            )
+            if not model:
+                self.model = "gemini-1.5-flash"
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
     
@@ -147,18 +145,6 @@ class LLMService:
             
             response = await self.client.messages.create(**kwargs)
             return response.content[0].text
-        elif self.provider == "gemini":
-            # Gemini format for new SDK
-            combined_prompt = ""
-            for msg in messages:
-                role = "User" if msg["role"] in ["user", "system"] else "Assistant"
-                combined_prompt += f"{role}: {msg['content']}\n\n"
-            
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=combined_prompt
-            )
-            return response.text
         else:
             # OpenAI and Groq use the same API
             response = await self.client.chat.completions.create(
@@ -219,20 +205,6 @@ class LLMService:
             async with self.client.messages.stream(**kwargs) as stream:
                 async for text in stream.text_stream:
                     yield text
-        elif self.provider == "gemini":
-            # Gemini streaming for new SDK
-            combined_prompt = ""
-            for msg in messages:
-                role = "User" if msg["role"] in ["user", "system"] else "Assistant"
-                combined_prompt += f"{role}: {msg['content']}\n\n"
-            
-            response_stream = self.client.models.generate_content_stream(
-                model=self.model,
-                contents=combined_prompt
-            )
-            for chunk in response_stream:
-                if chunk.text:
-                    yield chunk.text
         else:
             # OpenAI and Groq streaming
             stream = await self.client.chat.completions.create(

@@ -10,7 +10,6 @@ from abc import ABC, abstractmethod
 
 from src.services.llm_service import LLMService
 from src.tools.python_repl import PythonREPL
-from src.tools.unstructured_tool import UnstructuredDataTool
 from config import settings
 
 logger = logging.getLogger(__name__)
@@ -43,7 +42,6 @@ class BaseAgent(ABC):
         """
         self.llm = llm_service
         self.repl = repl or PythonREPL()
-        self.unstructured_tool = UnstructuredDataTool()
         self.max_steps = max_steps or settings.max_agent_steps
         self.steps: List[Dict[str, Any]] = []
         self.plots: List[str] = []
@@ -111,19 +109,18 @@ class BaseAgent(ABC):
         
         return parsed
     
-    async def execute_action(self, action: str, action_input: str) -> str:
+    def execute_action(self, action: str, action_input: str) -> str:
         """
         Execute an action and return observation.
         
         Args:
             action: Action name
-            action_input: Action input
+            action_input: Action input (usually Python code)
             
         Returns:
             Observation string
         """
-        action_lower = action.lower()
-        if action_lower in ['python', 'execute', 'code']:
+        if action.lower() in ['python', 'execute', 'code']:
             result = self.repl.execute(action_input)
             
             if result['success']:
@@ -136,10 +133,6 @@ class BaseAgent(ABC):
             else:
                 logger.error(f"Execution error: {result['error']}")
                 return f"Error: {result['error']}"
-        elif action_lower in ['websearch', 'search', 'scrape']:
-            logger.info(f"Executing web search for: {action_input}")
-            observation = await self.unstructured_tool.search_and_summarize(action_input)
-            return observation
         else:
             logger.warning(f"Unknown action: {action}")
             return f"Unknown action: {action}"
@@ -171,11 +164,7 @@ class BaseAgent(ABC):
                     assistant_content += f"Action: {step['action']}"
                 if step.get('action_input'):
                     if assistant_content: assistant_content += "\n"
-                    # Only wrap in code block if it's python
-                    if step.get('action', '').lower() in ['python', 'execute', 'code']:
-                        assistant_content += f"```python\n{step['action_input']}\n```"
-                    else:
-                        assistant_content += f"{step['action_input']}"
+                    assistant_content += f"```python\n{step['action_input']}\n```"
                 
                 if assistant_content:
                     messages.append({"role": "assistant", "content": assistant_content})
@@ -233,7 +222,7 @@ class BaseAgent(ABC):
             
             # Execute action if present (Do this BEFORE checking for Final Answer)
             if parsed.get('action') and parsed.get('action_input'):
-                observation = await self.execute_action(parsed['action'], parsed['action_input'])
+                observation = self.execute_action(parsed['action'], parsed['action_input'])
                 step['observation'] = observation
             
             # Check if we have a final answer
