@@ -89,13 +89,13 @@ export default function DataUploadPage({ onUploadSuccess }) {
                         Choose File
                         <input
                             type="file"
-                            accept=".csv,.xlsx,.xls,.pdf"
+                            accept=".csv,.xlsx,.xls"
                             onChange={handleFileSelect}
                             className="hidden"
                         />
                     </label>
                     <p className="text-sm text-gray-500 mt-4">
-                        Supported formats: CSV, Excel (.xlsx, .xls), PDF
+                        Supported formats: CSV, Excel (.xlsx, .xls)
                     </p>
                 </div>
             </div>

@@ -8,11 +8,6 @@ from pathlib import Path
 import hashlib
 from datetime import datetime
 
-try:
-    from pypdf import PdfReader
-except ImportError:
-    PdfReader = None
-
 
 class DataTools:
     """Tools for data loading and management."""
@@ -20,7 +15,7 @@ class DataTools:
     @staticmethod
     def load_file(file_path: str) -> pd.DataFrame:
         """
-        Load a CSV, Excel, or PDF file into a DataFrame.
+        Load a CSV or Excel file into a DataFrame.
         
         Args:
             file_path: Path to the file
@@ -34,36 +29,6 @@ class DataTools:
             return pd.read_csv(file_path)
         elif file_ext in ['.xlsx', '.xls']:
             return pd.read_excel(file_path)
-        elif file_ext == '.pdf':
-            if PdfReader is None:
-                raise ValueError("PDF support requires the 'pypdf' package")
-
-            reader = PdfReader(file_path)
-            rows = []
-
-            for index, page in enumerate(reader.pages, start=1):
-                text = page.extract_text() or ""
-                normalized_text = " ".join(text.split())
-
-                # Keep a row per page so unstructured PDF content can be analyzed in the existing flow.
-                rows.append({
-                    'page_number': index,
-                    'text': normalized_text,
-                    'char_count': len(normalized_text),
-                    'word_count': len(normalized_text.split())
-                })
-
-            if not rows:
-                raise ValueError("PDF has no readable pages")
-
-            df = pd.DataFrame(rows)
-            # Remove pages that extracted as empty text.
-            df = df[df['char_count'] > 0].reset_index(drop=True)
-
-            if df.empty:
-                raise ValueError("PDF text extraction returned no readable content")
-
-            return df
         else:
             raise ValueError(f"Unsupported file type: {file_ext}")
     

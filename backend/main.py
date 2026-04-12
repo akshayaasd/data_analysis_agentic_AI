@@ -2,16 +2,41 @@
 FastAPI main application.
 """
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
+from pathlib import Path
+from src.tools.data_tools import dataset_manager, DataTools
 from fastapi.middleware.cors import CORSMiddleware
 from config import settings
 
-from src.api.routes import chat, data, suggestions, visualization, images
+from src.api.routes import chat, data, suggestions, visualization
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("Loading existing datasets...")
+    upload_dir = Path(settings.upload_dir)
+    if upload_dir.exists():
+        for file_path in upload_dir.glob("*"):
+            if file_path.is_file() and file_path.suffix.lower() in ['.csv', '.xlsx', '.xls']:
+                dataset_id = file_path.stem
+                try:
+                    df = DataTools.load_file(str(file_path))
+                    dataset_manager.add_dataset(
+                        dataset_id=dataset_id,
+                        df=df,
+                        filename=file_path.name,
+                        file_path=str(file_path)
+                    )
+                    print(f"Loaded dataset: {dataset_id}")
+                except Exception as e:
+                    print(f"Failed to load {file_path.name}: {e}")
+    yield
 
 # Create FastAPI app
 app = FastAPI(
     title="Agentic Data Analysis API",
     description="Multi-agent system for data analysis and visualization",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Configure CORS
@@ -28,7 +53,7 @@ app.include_router(chat.router)
 app.include_router(data.router)
 app.include_router(suggestions.router)
 app.include_router(visualization.router)
-app.include_router(images.router)
+
 
 @app.get("/")
 async def root():

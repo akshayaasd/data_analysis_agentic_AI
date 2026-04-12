@@ -96,7 +96,7 @@ async def main():
     handler = UnstructuredDataHandler()
     
     # Query for something current to see the web search in action
-    example_query = "latest major breakthroughs in LLM architectures Feb 2025"
+    example_query = "tell about the data visualizationa nd analysis"
     
     print(f"Starting example for: {example_query}")
     

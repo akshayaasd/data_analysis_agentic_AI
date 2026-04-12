@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 # Load .env from project root
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-load_dotenv(os.path.join(ROOT_DIR, ".env"), override=True)
+load_dotenv(os.path.join(ROOT_DIR, ".env"))
 
 
 class Settings(BaseSettings):
@@ -19,12 +19,12 @@ class Settings(BaseSettings):
     groq_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
     gemini_api_key: Optional[str] = None
+    tavily_api_key: Optional[str] = None
     ollama_base_url: str = "http://localhost:11434"
-    gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai"
     
     # LLM Configuration
-    default_llm_provider: str = "groq"  # groq, openai, anthropic, ollama, gemini
-    default_model: str = "llama-3.3-70b-versatile"  # For Groq
+    default_llm_provider: str = "groq"  # groq, openai, anthropic
+    default_model: str = "llama-3.1-8b-instant"  # For Groq
     max_tokens: int = 2000
     temperature: float = 0.1
     

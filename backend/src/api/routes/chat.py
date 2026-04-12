@@ -91,12 +91,7 @@ async def send_message(request: ChatRequest):
         
         # Initialize orchestrator
         try:
-            provider = (request.llm_provider.value.strip().lower() if request.llm_provider else None)
-            if provider == "gemini":
-                logger.info("Gemini provider requested for chat; falling back to groq")
-                provider = "groq"
-
-            llm = get_llm_service(provider=provider)
+            llm = get_llm_service(provider=request.llm_provider)
             repl = PythonREPL(df, save_callback=lambda pid, fig: register_plot(f"{dataset_id}_{pid}", fig))
             orchestrator = AgentOrchestrator(llm, repl)
             active_orchestrators[session_id] = orchestrator
@@ -112,18 +107,6 @@ async def send_message(request: ChatRequest):
     
     session = sessions[session_id]
     orchestrator = active_orchestrators[session_id]
-    
-    # Check if provider changed for existing session
-    if request.llm_provider:
-        requested_provider = request.llm_provider.value.strip().lower()
-        if requested_provider == "gemini":
-            requested_provider = "groq"
-        
-        # If the requested provider is different from current, update it
-        if orchestrator.llm.provider != requested_provider:
-            logger.info(f"Updating session {session_id} LLM provider from {orchestrator.llm.provider} to {requested_provider}")
-            new_llm = get_llm_service(provider=requested_provider)
-            orchestrator.update_llm(new_llm)
     
     # Execute query
     try:

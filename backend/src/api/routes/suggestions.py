@@ -19,8 +19,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-from src.api.routes.visualization import register_plot
-
 @router.get("/{dataset_id}", response_model=SuggestionsResponse)
 async def get_suggestions(dataset_id: str, llm_provider: str = None):
     """
@@ -40,13 +38,8 @@ async def get_suggestions(dataset_id: str, llm_provider: str = None):
     
     # Initialize agent
     try:
-        provider = (llm_provider or "").strip().lower() or None
-        if provider == "gemini":
-            logger.info("Gemini provider requested for suggestions; falling back to groq")
-            provider = "groq"
-
-        llm = get_llm_service(provider=provider)
-        repl = PythonREPL(df, save_callback=lambda pid, fig: register_plot(f"{dataset_id}_{pid}", fig))
+        llm = get_llm_service(provider=llm_provider)
+        repl = PythonREPL(df)
         agent = SuggestionsAgent(llm, repl)
     except Exception as e:
         logger.error(f"Error initializing SuggestionsAgent: {e}")
