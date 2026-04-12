@@ -56,7 +56,7 @@ export const chatAPI = {
             message,
             session_id: sessionId,
             dataset_id: datasetId,
-            llm_provider: 'groq',
+            llm_provider: llmProvider,
         });
         return response.data;
     },
@@ -75,7 +75,8 @@ export const chatAPI = {
 // Suggestions API
 export const suggestionsAPI = {
     get: async (datasetId, llmProvider = null) => {
-        const url = `/api/suggestions/${datasetId}?llm_provider=groq`;
+        const providerQuery = llmProvider ? `?llm_provider=${llmProvider}` : '';
+        const url = `/api/suggestions/${datasetId}${providerQuery}`;
         const response = await api.get(url);
         return response.data;
     },

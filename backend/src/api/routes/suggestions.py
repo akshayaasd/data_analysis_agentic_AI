@@ -19,6 +19,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+from src.api.routes.visualization import register_plot
+
 @router.get("/{dataset_id}", response_model=SuggestionsResponse)
 async def get_suggestions(dataset_id: str, llm_provider: str = None):
     """
@@ -44,7 +46,7 @@ async def get_suggestions(dataset_id: str, llm_provider: str = None):
             provider = "groq"
 
         llm = get_llm_service(provider=provider)
-        repl = PythonREPL(df)
+        repl = PythonREPL(df, save_callback=lambda pid, fig: register_plot(f"{dataset_id}_{pid}", fig))
         agent = SuggestionsAgent(llm, repl)
     except Exception as e:
         logger.error(f"Error initializing SuggestionsAgent: {e}")

@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config import settings
 
-from src.api.routes import chat, data, suggestions, visualization
+from src.api.routes import chat, data, suggestions, visualization, images
 
 # Create FastAPI app
 app = FastAPI(
@@ -28,6 +28,7 @@ app.include_router(chat.router)
 app.include_router(data.router)
 app.include_router(suggestions.router)
 app.include_router(visualization.router)
+app.include_router(images.router)
 
 @app.get("/")
 async def root():

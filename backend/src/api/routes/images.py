@@ -10,10 +10,58 @@ from datetime import datetime
 from src.agents.image_analysis_agent import ImageAnalysisAgent
 from config import settings
 
+import json
+import os
+from pathlib import Path
+from config import settings
+
 router = APIRouter(prefix="/api/images", tags=["images"])
+
+# Metadata storage path
+METADATA_FILE = Path("data/image_metadata.json")
 
 # Store uploaded images metadata
 uploaded_images = {}
+
+
+def save_metadata():
+    """Save image metadata to disk."""
+    try:
+        os.makedirs(METADATA_FILE.parent, exist_ok=True)
+        # Convert datetime objects to strings for JSON serialization
+        serializable_metadata = {}
+        for img_id, meta in uploaded_images.items():
+            serializable_metadata[img_id] = {
+                **meta,
+                'upload_time': meta['upload_time'].isoformat() if isinstance(meta['upload_time'], datetime) else meta['upload_time']
+            }
+        
+        with open(METADATA_FILE, 'w') as f:
+            json.dump(serializable_metadata, f)
+    except Exception as e:
+        print(f"Error saving image metadata: {e}")
+
+
+def load_metadata():
+    """Load image metadata from disk."""
+    try:
+        if not METADATA_FILE.exists():
+            return
+        
+        with open(METADATA_FILE, 'r') as f:
+            data = json.load(f)
+            
+        for img_id, meta in data.items():
+            # Convert ISO strings back to datetime objects
+            if isinstance(meta['upload_time'], str):
+                meta['upload_time'] = datetime.fromisoformat(meta['upload_time'])
+            uploaded_images[img_id] = meta
+    except Exception as e:
+        print(f"Error loading image metadata: {e}")
+
+
+# Initial load
+load_metadata()
 
 
 @router.post("/upload")
@@ -57,6 +105,9 @@ async def upload_image(file: UploadFile = File(...)):
         'file_size': file_path.stat().st_size,
         'file_ext': file_ext
     }
+    
+    # Save metadata to disk
+    save_metadata()
     
     return {
         'image_id': image_id,
@@ -146,5 +197,8 @@ async def delete_image(image_id: str):
         file_path.unlink()
     
     del uploaded_images[image_id]
+    
+    # Save metadata to disk
+    save_metadata()
     
     return {'message': 'Image deleted'}

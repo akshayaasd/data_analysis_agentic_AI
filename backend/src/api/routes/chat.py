@@ -91,7 +91,7 @@ async def send_message(request: ChatRequest):
         
         # Initialize orchestrator
         try:
-            provider = (str(request.llm_provider).strip().lower() if request.llm_provider else None)
+            provider = (request.llm_provider.value.strip().lower() if request.llm_provider else None)
             if provider == "gemini":
                 logger.info("Gemini provider requested for chat; falling back to groq")
                 provider = "groq"
@@ -112,6 +112,18 @@ async def send_message(request: ChatRequest):
     
     session = sessions[session_id]
     orchestrator = active_orchestrators[session_id]
+    
+    # Check if provider changed for existing session
+    if request.llm_provider:
+        requested_provider = request.llm_provider.value.strip().lower()
+        if requested_provider == "gemini":
+            requested_provider = "groq"
+        
+        # If the requested provider is different from current, update it
+        if orchestrator.llm.provider != requested_provider:
+            logger.info(f"Updating session {session_id} LLM provider from {orchestrator.llm.provider} to {requested_provider}")
+            new_llm = get_llm_service(provider=requested_provider)
+            orchestrator.update_llm(new_llm)
     
     # Execute query
     try:

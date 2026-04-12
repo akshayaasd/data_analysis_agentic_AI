@@ -437,18 +437,27 @@ export default function VisualizationPage() {
                                         type: chartMode,
                                         x: groupedMetric.map((item) => item.category),
                                         y: groupedMetric.map((item) => item.value),
-                                        marker: { color: '#33B5E5' },
-                                        line: { color: '#33B5E5' },
+                                        marker: { color: '#8B5CF6' },
+                                        line: { color: '#8B5CF6', width: 3 },
                                     },
                                 ]}
                                 layout={{
                                     autosize: true,
                                     paper_bgcolor: 'rgba(0,0,0,0)',
                                     plot_bgcolor: 'rgba(0,0,0,0)',
-                                    font: { color: '#e5e7eb' },
+                                    font: { family: 'Outfit, sans-serif', color: '#e5e7eb' },
                                     margin: { l: 50, r: 20, t: 30, b: 80 },
-                                    xaxis: { tickangle: -30 },
-                                    yaxis: { title: `${aggregation}(${metricColumn || 'metric'})` },
+                                    xaxis: { 
+                                        tickangle: -30,
+                                        gridcolor: 'rgba(255,255,255,0.05)',
+                                        tickfont: { color: '#9ca3af' }
+                                    },
+                                    yaxis: { 
+                                        title: `${aggregation}(${metricColumn || 'metric'})`,
+                                        gridcolor: 'rgba(255,255,255,0.05)',
+                                        tickfont: { color: '#9ca3af' }
+                                    },
+                                    template: 'plotly_dark'
                                 }}
                                 config={{ responsive: true, displaylogo: false }}
                                 style={{ width: '100%', height: 360 }}
@@ -471,10 +480,17 @@ export default function VisualizationPage() {
                                     autosize: true,
                                     paper_bgcolor: 'rgba(0,0,0,0)',
                                     plot_bgcolor: 'rgba(0,0,0,0)',
-                                    font: { color: '#e5e7eb' },
+                                    font: { family: 'Outfit, sans-serif', color: '#e5e7eb' },
                                     margin: { l: 50, r: 20, t: 30, b: 50 },
-                                    xaxis: { title: metricColumn || 'Metric' },
-                                    yaxis: { title: 'Frequency' },
+                                    xaxis: { 
+                                        title: metricColumn || 'Metric',
+                                        gridcolor: 'rgba(255,255,255,0.05)'
+                                    },
+                                    yaxis: { 
+                                        title: 'Frequency',
+                                        gridcolor: 'rgba(255,255,255,0.05)'
+                                    },
+                                    template: 'plotly_dark'
                                 }}
                                 config={{ responsive: true, displaylogo: false }}
                                 style={{ width: '100%', height: 360 }}
@@ -503,10 +519,17 @@ export default function VisualizationPage() {
                                     autosize: true,
                                     paper_bgcolor: 'rgba(0,0,0,0)',
                                     plot_bgcolor: 'rgba(0,0,0,0)',
-                                    font: { color: '#e5e7eb' },
+                                    font: { family: 'Outfit, sans-serif', color: '#e5e7eb' },
                                     margin: { l: 55, r: 20, t: 30, b: 55 },
-                                    xaxis: { title: xScatterColumn || 'X' },
-                                    yaxis: { title: yScatterColumn || 'Y' },
+                                    xaxis: { 
+                                        title: xScatterColumn || 'X',
+                                        gridcolor: 'rgba(255,255,255,0.05)'
+                                    },
+                                    yaxis: { 
+                                        title: yScatterColumn || 'Y',
+                                        gridcolor: 'rgba(255,255,255,0.05)'
+                                    },
+                                    template: 'plotly_dark'
                                 }}
                                 config={{ responsive: true, displaylogo: false }}
                                 style={{ width: '100%', height: 360 }}

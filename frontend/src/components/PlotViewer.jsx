@@ -52,20 +52,49 @@ export default function PlotViewer({ plotId }) {
     if (!plotData) return null;
 
     return (
-        <div className="visualization-container bg-white rounded-lg p-2 overflow-hidden shadow-xl mt-4">
+        <div className="visualization-container bg-gray-900/40 border border-gray-700/50 rounded-xl p-4 overflow-hidden shadow-2xl mt-4 group transition-all duration-500 hover:border-primary-500/30">
             <Plot
-                data={plotData.data}
+                data={plotData.data.map(trace => ({
+                    ...trace,
+                    marker: {
+                        ...trace.marker,
+                        colorscale: trace.marker?.colorscale || 'Viridis',
+                        line: { ...trace.marker?.line, color: 'rgba(255,255,255,0.2)', width: 1 }
+                    }
+                }))}
                 layout={{
                     ...plotData.layout,
                     autosize: true,
-                    margin: { l: 50, r: 30, t: 50, b: 50 },
-                    paper_bgcolor: 'rgba(255,255,255,1)',
-                    plot_bgcolor: 'rgba(255,255,255,1)',
-                    font: { family: 'Inter, sans-serif' },
+                    margin: { l: 60, r: 30, t: 50, b: 60 },
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    font: { 
+                        family: 'Outfit, Inter, sans-serif',
+                        color: '#f3f4f6' 
+                    },
+                    xaxis: {
+                        ...plotData.layout?.xaxis,
+                        gridcolor: 'rgba(255,255,255,0.1)',
+                        zerolinecolor: 'rgba(255,255,255,0.2)',
+                        tickfont: { color: '#9ca3af' }
+                    },
+                    yaxis: {
+                        ...plotData.layout?.yaxis,
+                        gridcolor: 'rgba(255,255,255,0.1)',
+                        zerolinecolor: 'rgba(255,255,255,0.2)',
+                        tickfont: { color: '#9ca3af' }
+                    },
+                    colorway: ['#33B5E5', '#8B5CF6', '#F59E0B', '#10B981', '#EC4899', '#3B82F6'],
+                    template: 'plotly_dark'
                 }}
                 useResizeHandler={true}
-                style={{ width: '100%', height: '400px' }}
-                config={{ responsive: true, displayModeBar: true, displaylogo: false }}
+                style={{ width: '100%', height: '450px' }}
+                config={{ 
+                    responsive: true, 
+                    displayModeBar: 'hover', 
+                    displaylogo: false,
+                    modeBarButtonsToRemove: ['select2d', 'lasso2d']
+                }}
             />
         </div>
     );

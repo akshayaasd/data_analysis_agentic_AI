@@ -14,7 +14,7 @@ export const useApp = () => {
 };
 
 export const AppProvider = ({ children }) => {
-    const allowedProviders = new Set(['groq']);
+    const allowedProviders = new Set(['groq', 'openai', 'anthropic', 'ollama', 'gemini']);
 
     // Initial state from localStorage with error handling
     const [currentDataset, setCurrentDataset] = useState(() => {

@@ -128,3 +128,9 @@ class AgentOrchestrator:
     def update_dataframe(self, df):
         """Update the dataframe for all agents."""
         self.repl.update_dataframe(df)
+
+    def update_llm(self, llm_service: LLMService):
+        """Update the LLM service for all agents."""
+        self.llm = llm_service
+        for agent in self.agents.values():
+            agent.llm = llm_service

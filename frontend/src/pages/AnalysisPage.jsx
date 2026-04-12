@@ -65,9 +65,9 @@ export default function AnalysisPage() {
     };
 
     return (
-        <div className="space-y-6 animate-fade-in">
+        <div className="flex flex-col h-[calc(100vh-120px)] space-y-4 animate-fade-in">
             {/* Chat Messages */}
-            <div className="card h-[calc(100vh-320px)] overflow-y-auto space-y-4">
+            <div className="card flex-1 overflow-y-auto space-y-4">
                 {messages.length === 0 ? (
                     <div className="text-center py-12 text-gray-500">
                         <p className="text-lg mb-4">👋 Ask me anything about your data!</p>

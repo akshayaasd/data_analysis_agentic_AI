@@ -40,9 +40,8 @@ class LLMService:
             api_key: API key for the provider
             model: Model name to use
         """
-        # Enforce Groq globally for consistent behavior across all routes/agents.
-        self.provider = "groq"
-        self.model = model or settings.default_model
+        self.provider = provider or settings.default_llm_provider
+        self.model = model
         self.api_key = api_key
         
         # Initialize client based on provider
@@ -53,8 +52,8 @@ class LLMService:
             if not api_key:
                 raise ValueError("Groq API key not found")
             self.client = AsyncGroq(api_key=api_key)
-            if not model:
-                self.model = "llama-3.3-70b-versatile"
+            if not self.model:
+                self.model = settings.default_model or "llama-3.3-70b-versatile"
                 
         elif self.provider == "openai":
             if AsyncOpenAI is None:
@@ -63,8 +62,8 @@ class LLMService:
             if not api_key:
                 raise ValueError("OpenAI API key not found")
             self.client = AsyncOpenAI(api_key=api_key)
-            if not model:
-                self.model = "gpt-4"
+            if not self.model:
+                self.model = "gpt-4o-mini"
                 
         elif self.provider == "anthropic":
             if AsyncAnthropic is None:
@@ -73,7 +72,7 @@ class LLMService:
             if not api_key:
                 raise ValueError("Anthropic API key not found")
             self.client = AsyncAnthropic(api_key=api_key)
-            if not model:
+            if not self.model:
                 self.model = "claude-3-5-sonnet-20241022"
         elif self.provider == "ollama":
             if AsyncOpenAI is None:
@@ -83,7 +82,7 @@ class LLMService:
                 base_url=f"{settings.ollama_base_url}/v1",
                 api_key="ollama"
             )
-            if not model:
+            if not self.model:
                 self.model = "llama3.1"
         elif self.provider == "gemini":
             if AsyncOpenAI is None:
@@ -95,7 +94,7 @@ class LLMService:
                 base_url=settings.gemini_base_url,
                 api_key=api_key
             )
-            if not model:
+            if not self.model:
                 self.model = "gemini-1.5-flash"
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")

@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 # Load .env from project root
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-load_dotenv(os.path.join(ROOT_DIR, ".env"))
+load_dotenv(os.path.join(ROOT_DIR, ".env"), override=True)
 
 
 class Settings(BaseSettings):
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     
     # LLM Configuration
     default_llm_provider: str = "groq"  # groq, openai, anthropic, ollama, gemini
-    default_model: str = "llama-3.1-8b-instant"  # For Groq
+    default_model: str = "llama-3.3-70b-versatile"  # For Groq
     max_tokens: int = 2000
     temperature: float = 0.1
     
