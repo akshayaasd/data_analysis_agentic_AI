@@ -91,7 +91,12 @@ async def send_message(request: ChatRequest):
         
         # Initialize orchestrator
         try:
-            llm = get_llm_service(provider=request.llm_provider)
+            provider = (str(request.llm_provider).strip().lower() if request.llm_provider else None)
+            if provider == "gemini":
+                logger.info("Gemini provider requested for chat; falling back to groq")
+                provider = "groq"
+
+            llm = get_llm_service(provider=provider)
             repl = PythonREPL(df, save_callback=lambda pid, fig: register_plot(f"{dataset_id}_{pid}", fig))
             orchestrator = AgentOrchestrator(llm, repl)
             active_orchestrators[session_id] = orchestrator

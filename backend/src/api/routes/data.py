@@ -5,11 +5,13 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from pathlib import Path
 import shutil
 import uuid
+from datetime import datetime, date
+
+import pandas as pd
 
 from src.models.schemas import DatasetInfo, DataUploadResponse
 from src.tools.data_tools import DataTools, dataset_manager
 from config import settings
-from datetime import datetime
 
 router = APIRouter(prefix="/api/data", tags=["data"])
 
@@ -17,7 +19,7 @@ router = APIRouter(prefix="/api/data", tags=["data"])
 @router.post("/upload", response_model=DataUploadResponse)
 async def upload_dataset(file: UploadFile = File(...)):
     """
-    Upload a CSV or Excel file.
+    Upload a CSV, Excel, or PDF file.
     
     Args:
         file: Uploaded file
@@ -26,7 +28,7 @@ async def upload_dataset(file: UploadFile = File(...)):
         Dataset information and preview
     """
     # Validate file type
-    allowed_extensions = ['.csv', '.xlsx', '.xls']
+    allowed_extensions = ['.csv', '.xlsx', '.xls', '.pdf']
     file_ext = Path(file.filename).suffix.lower()
     
     if file_ext not in allowed_extensions:
@@ -123,6 +125,59 @@ async def get_dataset_preview(dataset_id: str, n_rows: int = 10):
         raise HTTPException(status_code=404, detail="Dataset not found")
     
     return {"preview": DataTools.get_preview(df, n_rows)}
+
+
+@router.get("/records/{dataset_id}")
+async def get_dataset_records(dataset_id: str, limit: int = 5000):
+    """
+    Get dataset rows for interactive visual analytics.
+
+    Args:
+        dataset_id: Dataset identifier
+        limit: Maximum number of rows to return
+
+    Returns:
+        Dataset records with JSON-serializable values
+    """
+    if limit < 1 or limit > 50000:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 50000")
+
+    df = dataset_manager.get_dataset(dataset_id)
+    if df is None:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    subset = df.head(limit)
+
+    records = []
+    for _, row in subset.iterrows():
+        record = {}
+        for column, value in row.items():
+            if pd.isna(value):
+                record[column] = None
+                continue
+
+            if isinstance(value, (datetime, date, pd.Timestamp)):
+                record[column] = value.isoformat()
+                continue
+
+            # Convert numpy scalar types to native Python values if needed.
+            if hasattr(value, "item"):
+                try:
+                    record[column] = value.item()
+                    continue
+                except Exception:
+                    pass
+
+            record[column] = value
+
+        records.append(record)
+
+    return {
+        "dataset_id": dataset_id,
+        "total_rows": int(len(df)),
+        "returned_rows": int(len(records)),
+        "records": records
+    }
 
 
 @router.delete("/{dataset_id}")

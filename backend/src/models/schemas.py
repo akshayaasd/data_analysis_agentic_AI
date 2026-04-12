@@ -13,6 +13,7 @@ class LLMProvider(str, Enum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     OLLAMA = "ollama"
+    GEMINI = "gemini"
 
 
 class AgentType(str, Enum):

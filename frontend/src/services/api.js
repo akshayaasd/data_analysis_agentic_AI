@@ -33,6 +33,11 @@ export const dataAPI = {
         return response.data;
     },
 
+    getRecords: async (datasetId, limit = 5000) => {
+        const response = await api.get(`/api/data/records/${datasetId}?limit=${limit}`);
+        return response.data;
+    },
+
     list: async () => {
         const response = await api.get('/api/data/list');
         return response.data;
@@ -51,7 +56,7 @@ export const chatAPI = {
             message,
             session_id: sessionId,
             dataset_id: datasetId,
-            llm_provider: llmProvider,
+            llm_provider: 'groq',
         });
         return response.data;
     },
@@ -70,7 +75,7 @@ export const chatAPI = {
 // Suggestions API
 export const suggestionsAPI = {
     get: async (datasetId, llmProvider = null) => {
-        const url = `/api/suggestions/${datasetId}${llmProvider ? `?llm_provider=${llmProvider}` : ''}`;
+        const url = `/api/suggestions/${datasetId}?llm_provider=groq`;
         const response = await api.get(url);
         return response.data;
     },
