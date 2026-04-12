@@ -49,8 +49,10 @@ export default function Dashboard() {
                                     className="w-full bg-gray-900 text-white text-xs rounded border border-gray-700 px-2 py-2 focus:ring-1 focus:ring-primary-500 outline-none"
                                 >
                                     <option value="groq">Groq (Llama 3.3)</option>
+                                    <option value="gemini">Gemini (Google)</option>
                                     <option value="openai">OpenAI (GPT-4)</option>
                                     <option value="anthropic">Anthropic (Claude 3.5)</option>
+                                    <option value="mcp">⚡ MCP Bridge</option>
                                     <option value="ollama">Ollama (Local)</option>
                                 </select>
                             </div>

@@ -11,6 +11,8 @@ from src.services.llm_service import get_llm_service
 from src.tools.python_repl import PythonREPL
 from src.tools.data_tools import dataset_manager
 from src.api.routes.visualization import register_plot
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -29,6 +31,24 @@ if not os.path.exists("data"):
 
 # Store active orchestrators in memory (these can't be serialized)
 active_orchestrators: Dict[str, AgentOrchestrator] = {}
+
+# Path to the MCP bridge server
+MCP_BRIDGE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), "mcp_bridge.py")
+
+async def run_via_mcp(dataset_id: str, query: str) -> str:
+    """Route a query through the MCP bridge server using the analyze_data tool."""
+    logger.info(f"[MCP] Routing query via MCP bridge: {MCP_BRIDGE_PATH}")
+    server_params = StdioServerParameters(
+        command="python", args=["-u", MCP_BRIDGE_PATH], env=os.environ.copy()
+    )
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            result = await session.call_tool("analyze_data", arguments={
+                "dataset_id": dataset_id,
+                "query": query
+            })
+            return result.content[0].text if result.content else "No response from MCP agent."
 
 def load_sessions() -> Dict[str, Any]:
     if os.path.exists(SESSIONS_FILE):
@@ -89,14 +109,12 @@ async def send_message(request: ChatRequest):
                 detail=f"Dataset {dataset_id} not found"
             )
         
-        # Initialize orchestrator
+        # Initialize orchestrator (for MCP mode, use default LLM as fallback for session init)
         try:
-            provider = (request.llm_provider.value.strip().lower() if request.llm_provider else None)
-            if provider == "gemini":
-                logger.info("Gemini provider requested for chat; falling back to groq")
-                provider = "groq"
-
-            llm = get_llm_service(provider=provider)
+            requested_provider = request.llm_provider.value if request.llm_provider else None
+            # For MCP, use default provider as backing LLM for orchestrator init
+            llm_provider_for_init = None if requested_provider == "mcp" else requested_provider
+            llm = get_llm_service(provider=llm_provider_for_init)
             repl = PythonREPL(df, save_callback=lambda pid, fig: register_plot(f"{dataset_id}_{pid}", fig))
             orchestrator = AgentOrchestrator(llm, repl)
             active_orchestrators[session_id] = orchestrator
@@ -115,11 +133,7 @@ async def send_message(request: ChatRequest):
     
     # Check if provider changed for existing session
     if request.llm_provider:
-        requested_provider = request.llm_provider.value.strip().lower()
-        if requested_provider == "gemini":
-            requested_provider = "groq"
-        
-        # If the requested provider is different from current, update it
+        requested_provider = request.llm_provider.value
         if orchestrator.llm.provider != requested_provider:
             logger.info(f"Updating session {session_id} LLM provider from {orchestrator.llm.provider} to {requested_provider}")
             new_llm = get_llm_service(provider=requested_provider)
@@ -128,6 +142,23 @@ async def send_message(request: ChatRequest):
     # Execute query
     try:
         logger.info(f"Executing query for session {session_id}: {request.message}")
+        
+        # MCP path: route through mcp_bridge.py via MCP protocol
+        if request.llm_provider and request.llm_provider.value == "mcp":
+            logger.info("[MCP] Routing query through MCP bridge")
+            mcp_answer = await run_via_mcp(session['dataset_id'], request.message)
+            session['history'].append({'role': MessageRole.USER.value, 'content': request.message})
+            session['history'].append({'role': MessageRole.ASSISTANT.value, 'content': mcp_answer})
+            save_sessions(sessions)
+            return ChatResponse(
+                session_id=session_id,
+                message=mcp_answer,
+                agent_type=None,
+                code_executed=None,
+                plots=[],
+                metadata={'provider': 'mcp'}
+            )
+
         result = await orchestrator.execute(
             query=request.message,
             dataset_id=session['dataset_id'],
@@ -136,11 +167,11 @@ async def send_message(request: ChatRequest):
         
         # Store in history
         session['history'].append({
-            'role': MessageRole.USER,
+            'role': MessageRole.USER.value,
             'content': request.message
         })
         session['history'].append({
-            'role': MessageRole.ASSISTANT,
+            'role': MessageRole.ASSISTANT.value,
             'content': result['final_answer']
         })
         

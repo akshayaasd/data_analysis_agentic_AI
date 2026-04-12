@@ -41,7 +41,7 @@ class LLMService:
             model: Model name to use
         """
         self.provider = provider or settings.default_llm_provider
-        self.model = model
+        self.model = model  # Keep None until provider block sets it
         self.api_key = api_key
         
         # Initialize client based on provider
@@ -52,8 +52,9 @@ class LLMService:
             if not api_key:
                 raise ValueError("Groq API key not found")
             self.client = AsyncGroq(api_key=api_key)
+            # Only use DEFAULT_MODEL if provider matches, else safe groq default
             if not self.model:
-                self.model = settings.default_model or "llama-3.3-70b-versatile"
+                self.model = settings.default_model if settings.default_llm_provider == "groq" else "llama-3.3-70b-versatile"
                 
         elif self.provider == "openai":
             if AsyncOpenAI is None:
@@ -63,7 +64,7 @@ class LLMService:
                 raise ValueError("OpenAI API key not found")
             self.client = AsyncOpenAI(api_key=api_key)
             if not self.model:
-                self.model = "gpt-4o-mini"
+                self.model = settings.default_model if settings.default_llm_provider == "openai" else "gpt-4o-mini"
                 
         elif self.provider == "anthropic":
             if AsyncAnthropic is None:
@@ -77,7 +78,6 @@ class LLMService:
         elif self.provider == "ollama":
             if AsyncOpenAI is None:
                 raise ImportError("openai package not installed (needed for Ollama compatibility)")
-            # Ollama doesn't need a real API key
             self.client = AsyncOpenAI(
                 base_url=f"{settings.ollama_base_url}/v1",
                 api_key="ollama"
@@ -95,7 +95,9 @@ class LLMService:
                 api_key=api_key
             )
             if not self.model:
-                self.model = "gemini-1.5-flash"
+                # Use DEFAULT_MODEL only if it looks like a gemini model
+                dm = settings.default_model or ""
+                self.model = dm if dm.startswith("gemini") else "gemini-2.0-flash"
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
     

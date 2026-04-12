@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     groq_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
     gemini_api_key: Optional[str] = None
+    tavily_api_key: Optional[str] = None
     ollama_base_url: str = "http://localhost:11434"
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai"
     
