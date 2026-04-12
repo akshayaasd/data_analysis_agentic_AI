@@ -1,4 +1,5 @@
 import os
+import sys
 from typing import Optional
 from tavily import TavilyClient
 from config import settings
@@ -11,9 +12,9 @@ class UnstructuredDataTool:
     def __init__(self):
         # Use the centralized LLM service, defaulting to gemini
         try:
-            self.llm = get_llm_service(provider="gemini")
+            self.llm = get_llm_service()
         except Exception as e:
-            print(f"Error initializing LLM in UnstructuredDataTool: {e}")
+            print(f"Error initializing LLM in UnstructuredDataTool: {e}", file=sys.stderr)
             self.llm = None
 
         # Initialize Tavily client for web scraping and search

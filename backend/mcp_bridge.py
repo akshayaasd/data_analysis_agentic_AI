@@ -18,7 +18,7 @@ try:
     from src.tools.unstructured_tool import UnstructuredDataTool
     from config import settings
 except ImportError as e:
-    print(f"Import error: {e}")
+    print(f"Import error: {e}", file=sys.stderr)
     # Fallback for different execution contexts
     from services.llm_service import get_llm_service
     from core.orchestrator import AgentOrchestrator
@@ -82,7 +82,7 @@ async def list_datasets() -> List[Dict[str, Any]]:
                         df = DataTools.load_file(str(file_path))
                         dataset_manager.add_dataset(dataset_id, df, file_path.name, str(file_path))
                     except Exception as e:
-                        print(f"Failed to load {file_path.name}: {e}")
+                        print(f"Failed to load {file_path.name}: {e}", file=sys.stderr)
 
     ids = dataset_manager.list_datasets()
     results = []

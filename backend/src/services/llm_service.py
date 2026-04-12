@@ -46,7 +46,8 @@ class LLMService:
             model: Model name to use
         """
         self.provider = provider or settings.default_llm_provider
-        self.model = model or settings.default_model
+        # Don't assign a global default model at the start; let each provider handle its own fallback
+        self.model = model 
         self.api_key = api_key
         
         # Initialize client based on provider
@@ -58,7 +59,11 @@ class LLMService:
                 raise ValueError("Groq API key not found")
             self.client = AsyncGroq(api_key=api_key)
             if not self.model:
-                self.model = "llama-3.3-70b-versatile"
+                # Use settings default only if it's likely a Groq model, otherwise fallback specifically
+                if settings.default_llm_provider == "groq":
+                    self.model = settings.default_model or "llama-3.3-70b-versatile"
+                else:
+                    self.model = "llama-3.3-70b-versatile"
                 
         elif self.provider == "openai":
             if AsyncOpenAI is None:
@@ -68,7 +73,10 @@ class LLMService:
                 raise ValueError("OpenAI API key not found")
             self.client = AsyncOpenAI(api_key=api_key)
             if not self.model:
-                self.model = "gpt-4"
+                if settings.default_llm_provider == "openai":
+                    self.model = settings.default_model or "gpt-4"
+                else:
+                    self.model = "gpt-4"
                 
         elif self.provider == "anthropic":
             if AsyncAnthropic is None:
@@ -78,7 +86,10 @@ class LLMService:
                 raise ValueError("Anthropic API key not found")
             self.client = AsyncAnthropic(api_key=api_key)
             if not self.model:
-                self.model = "claude-3-5-sonnet-20241022"
+                if settings.default_llm_provider == "anthropic":
+                    self.model = settings.default_model or "claude-3-5-sonnet-20241022"
+                else:
+                    self.model = "claude-3-5-sonnet-20241022"
         elif self.provider == "ollama":
             if AsyncOpenAI is None:
                 raise ImportError("openai package not installed (needed for Ollama compatibility)")
@@ -97,7 +108,10 @@ class LLMService:
                 raise ValueError("Gemini API key not found")
             
             if not self.model:
-                self.model = "gemini-2.5-flash" 
+                if settings.default_llm_provider == "gemini":
+                    self.model = settings.default_model or "gemini-2.0-flash" 
+                else:
+                    self.model = "gemini-2.0-flash" 
             self.client = genai.Client(api_key=api_key)
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
