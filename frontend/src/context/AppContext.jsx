@@ -31,7 +31,7 @@ export const AppProvider = ({ children }) => {
     });
 
     const [llmProvider, setLlmProvider] = useState(() => {
-        return localStorage.getItem('llmProvider') || 'groq';
+        return localStorage.getItem('llmProvider') || 'ollama';
     });
 
     const [apiKey, setApiKey] = useState(() => {

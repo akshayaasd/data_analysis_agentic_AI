@@ -58,10 +58,11 @@ export default function PlotViewer({ plotId }) {
                 layout={{
                     ...plotData.layout,
                     autosize: true,
-                    margin: { l: 50, r: 30, t: 50, b: 50 },
                     paper_bgcolor: 'rgba(255,255,255,1)',
                     plot_bgcolor: 'rgba(255,255,255,1)',
                     font: { family: 'Inter, sans-serif' },
+                    xaxis: { ...plotData.layout?.xaxis, automargin: true },
+                    yaxis: { ...plotData.layout?.yaxis, automargin: true },
                 }}
                 useResizeHandler={true}
                 style={{ width: '100%', height: '400px' }}

@@ -84,11 +84,11 @@ export default function AnalysisPage() {
                             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                         >
                             <div
-                                className={`max-w-[80%] rounded-lg p-4 ${msg.role === 'user'
-                                    ? 'bg-primary-600 text-white'
+                                className={`rounded-lg p-4 ${msg.role === 'user'
+                                    ? 'max-w-[80%] bg-primary-600 text-white'
                                     : msg.role === 'error'
-                                        ? 'bg-red-900/50 text-red-300'
-                                        : 'bg-gray-700 text-gray-100'
+                                        ? 'max-w-[80%] bg-red-900/50 text-red-300'
+                                        : 'max-w-[95%] bg-gray-700 text-gray-100'
                                     }`}
                             >
                                 <p className="whitespace-pre-wrap">{msg.content}</p>
